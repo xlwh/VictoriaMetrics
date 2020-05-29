@@ -15,6 +15,7 @@ import (
 )
 
 var (
+	// HTTP 请求包大小限制32M
 	maxInsertRequestSize = flag.Int("opentsdbhttp.maxInsertRequestSize", 32*1024*1024, "The maximum size of OpenTSDB HTTP put request")
 	trimTimestamp        = flag.Duration("opentsdbhttpTrimTimestamp", time.Millisecond, "Trim timestamps for OpenTSDB HTTP data to this duration. "+
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
@@ -30,6 +31,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	readCalls.Inc()
 	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
+		// 获取一个gzip读取器
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			readErrors.Inc()
@@ -39,6 +41,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		r = zr
 	}
 
+	// 取到一个context,应该是是个对象池？？
 	ctx := getStreamContext()
 	defer putStreamContext(ctx)
 
@@ -119,6 +122,8 @@ var (
 	unmarshalErrors = metrics.NewCounter(`vm_protoparser_unmarshal_errors_total{type="opentsdbhttp"}`)
 )
 
+// 多核下从一个带buf的池里面取对象，非多核场景下，那么就从不带buf的池中取对象
+// 优化竞争锁调用：http://xiaorui.cc/archives/5878
 func getStreamContext() *streamContext {
 	select {
 	case ctx := <-streamContextPoolCh:
