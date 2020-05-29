@@ -12,9 +12,9 @@ import (
 
 // Rows contains parsed OpenTSDB rows.
 type Rows struct {
-	Rows []Row
+	Rows []Row   // 多个Point
 
-	tagsPool []Tag
+	tagsPool []Tag  // tag 池
 }
 
 // Reset resets rs.
@@ -36,7 +36,9 @@ func (rs *Rows) Reset() {
 // See http://opentsdb.net/docs/build/html/api_http/put.html
 //
 // s must be unchanged until rs is in use.
+// 解析Json数据
 func (rs *Rows) Unmarshal(av *fastjson.Value) {
+	// 递归解析多个数据点
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], av, rs.tagsPool[:0])
 }
 

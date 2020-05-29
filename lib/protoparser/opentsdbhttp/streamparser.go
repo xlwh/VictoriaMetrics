@@ -25,6 +25,7 @@ var (
 // The callback can be called multiple times for streamed data from req.
 //
 // callback shouldn't hold rows after returning.
+// 解析OpenTSDB协议
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	readCalls.Inc()
 	r := req.Body
@@ -42,6 +43,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	defer putStreamContext(ctx)
 
 	// Read the request in ctx.reqBuf
+	// 限制HTTP body大小
 	lr := io.LimitReader(r, int64(*maxInsertRequestSize)+1)
 	reqLen, err := ctx.reqBuf.ReadFrom(lr)
 	if err != nil {
@@ -54,6 +56,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 	}
 
 	// Unmarshal the request to ctx.Rows
+	// 取出解析器
 	p := GetParser()
 	defer PutParser(p)
 	v, err := p.ParseBytes(ctx.reqBuf.B)
@@ -61,6 +64,7 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 		unmarshalErrors.Inc()
 		return fmt.Errorf("cannot parse HTTP OpenTSDB json: %s", err)
 	}
+	// 解析JSON
 	ctx.Rows.Unmarshal(v)
 	rowsRead.Add(len(ctx.Rows.Rows))
 

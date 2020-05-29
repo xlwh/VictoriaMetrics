@@ -60,6 +60,7 @@ func main() {
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
 
+// 注册HTTP handle
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if vminsert.RequestHandler(w, r) {
 		return true
