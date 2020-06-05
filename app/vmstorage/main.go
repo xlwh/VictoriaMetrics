@@ -79,6 +79,7 @@ var Storage *storage.Storage
 var WG syncwg.WaitGroup
 
 // AddRows adds mrs to the storage.
+// 往存储里面写入数据
 func AddRows(mrs []storage.MetricRow) error {
 	WG.Add(1)
 	err := Storage.AddRows(mrs, uint8(*precisionBits))

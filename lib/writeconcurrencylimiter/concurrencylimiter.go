@@ -31,17 +31,20 @@ func Init() {
 func Do(f func() error) error {
 	// Limit the number of conurrent f calls in order to prevent from excess
 	// memory usage and CPU trashing.
+	// Pool是一个阻塞队列，只有当能丢进去东西的时候，才认为可以抢到锁
 	select {
-	case ch <- struct{}{}:
-		err := f()
-		<-ch
-		return err
+	case ch <- struct{}{}:  // 往队列里面占队，拿到执行请求的权限
+		err := f()         // 执行对应的请求处理回调函数
+		<-ch                // 处理完成后撤销资源的占用
+		return err          // 返回处理的结果
 	default:
+		// 没拿到资源，继续往下
 	}
 
 	// All the workers are busy.
 	// Sleep for up to *maxQueueDuration.
 	concurrencyLimitReached.Inc()
+	// 从池里面取一个计时器，请求堵塞等待
 	t := timerpool.Get(*maxQueueDuration)
 	select {
 	case ch <- struct{}{}:
