@@ -20,6 +20,7 @@ var logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.S
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
 
 // Exec executes q for the given ec.
+// 执行数据的查询和计算等
 func Exec(ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if *logSlowQueryDuration > 0 {
 		startTime := time.Now()
