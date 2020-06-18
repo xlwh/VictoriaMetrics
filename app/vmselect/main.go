@@ -134,8 +134,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+		// 查询时序数据
 	case "/api/v1/query_range":
 		queryRangeRequests.Inc()
+		// 允许跨域
 		httpserver.EnableCORS(w, r)
 		if err := prometheus.QueryRangeHandler(startTime, w, r); err != nil {
 			queryRangeErrors.Inc()

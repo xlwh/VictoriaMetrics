@@ -118,20 +118,30 @@ func (r *QueryRangeDataResult) UnmarshalJSON(b []byte) error {
 	return json.Unmarshal(testutil.PopulateTimeTpl(b, insertionTime), (*plain)(r))
 }
 
+// 运行所有测试Case
 func TestMain(m *testing.M) {
+	// 服务初始化设置
 	setUp()
+	// 运行单测
 	code := m.Run()
+	// 完成单元测试，清理释放资源
 	tearDown()
 	os.Exit(code)
 }
 
 func setUp() {
+	// 数据存储路径
 	storagePath = filepath.Join(os.TempDir(), testStorageSuffix)
+	// 填充服务启动参数
 	processFlags()
+	// 初始化日志服务
 	logger.Init()
 	vmstorage.InitWithoutMetrics()
+	// 查询服务初始化
 	vmselect.Init()
+	// 写入服务初始化
 	vminsert.Init()
+	// 启动HTTP 服务
 	go httpserver.Serve(*httpListenAddr, requestHandler)
 	readyStorageCheckFunc := func() bool {
 		resp, err := http.Get(testHealthHTTPPath)
@@ -146,6 +156,7 @@ func setUp() {
 	}
 }
 
+// 填充服务启动参数
 func processFlags() {
 	envflag.Parse()
 	for _, fv := range []struct {
@@ -187,6 +198,7 @@ func tearDown() {
 	fs.MustRemoveAll(storagePath)
 }
 
+// 测试读写
 func TestWriteRead(t *testing.T) {
 	t.Run("write", testWrite)
 	time.Sleep(1 * time.Second)
@@ -196,6 +208,7 @@ func TestWriteRead(t *testing.T) {
 	t.Run("read", testRead)
 }
 
+// 测试数据的写入
 func testWrite(t *testing.T) {
 	t.Run("prometheus", func(t *testing.T) {
 		for _, test := range readIn("prometheus", t, insertionTime) {
@@ -239,6 +252,7 @@ func testWrite(t *testing.T) {
 			})
 		}
 	})
+	// 测试OpenTSDB数据写入
 	t.Run("opentsdbhttp", func(t *testing.T) {
 		for _, x := range readIn("opentsdbhttp", t, insertionTime) {
 			test := x

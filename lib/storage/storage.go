@@ -841,7 +841,9 @@ func (mr *MetricRow) Unmarshal(src []byte) ([]byte, error) {
 }
 
 // AddRows adds the given mrs to s.
+// 往存储里面写入数据
 func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
+	// 没有数据，直接返回，但是没报错，认为是正常的吧
 	if len(mrs) == 0 {
 		return nil
 	}
@@ -849,6 +851,8 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	// Limit the number of concurrent goroutines that may add rows to the storage.
 	// This should prevent from out of memory errors and CPU trashing when too many
 	// goroutines call AddRows.
+	// 限制写入并发度，避免CPU和内存被打满
+	// 这里需要获取到执行资源，才能进行写入操作
 	select {
 	case addRowsConcurrencyCh <- struct{}{}:
 		defer func() { <-addRowsConcurrencyCh }()
@@ -872,7 +876,9 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	// Add rows to the storage.
 	var err error
 	rr := getRawRowsWithSize(len(mrs))
+	// 写入数据
 	rr.rows, err = s.add(rr.rows, mrs, precisionBits)
+	// 把对象归还到池里面去
 	putRawRows(rr)
 
 	return err
@@ -883,6 +889,7 @@ var (
 	addRowsTimeout       = 30 * time.Second
 )
 
+// 写入数据到存储层
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	var is *indexSearch
 	var mn *MetricName

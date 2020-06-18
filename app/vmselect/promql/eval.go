@@ -153,6 +153,7 @@ func getTimestamps(start, end, step int64) []int64 {
 	return timestamps
 }
 
+// 执行计算
 func evalExpr(ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
 	if me, ok := e.(*metricsql.MetricExpr); ok {
 		re := &metricsql.RollupExpr{

@@ -24,8 +24,10 @@ var selfScraperStopCh chan struct{}
 var selfScraperWG sync.WaitGroup
 
 func startSelfScraper() {
+	// 停止信号
 	selfScraperStopCh = make(chan struct{})
 	selfScraperWG.Add(1)
+	// 在后台启动数据抓取线程
 	go func() {
 		defer selfScraperWG.Done()
 		selfScraper(*selfScrapeInterval)
@@ -37,6 +39,7 @@ func stopSelfScraper() {
 	selfScraperWG.Wait()
 }
 
+// 启动数据抓取服务
 func selfScraper(scrapeInterval time.Duration) {
 	if scrapeInterval <= 0 {
 		// Self-scrape is disabled.

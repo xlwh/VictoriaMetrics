@@ -12,9 +12,9 @@ import (
 
 // Rows contains parsed OpenTSDB rows.
 type Rows struct {
-	Rows []Row
+	Rows []Row   // 多个Point
 
-	tagsPool []Tag
+	tagsPool []Tag  // tag 池
 }
 
 // Reset resets rs.
@@ -36,7 +36,9 @@ func (rs *Rows) Reset() {
 // See http://opentsdb.net/docs/build/html/api_http/put.html
 //
 // s must be unchanged until rs is in use.
+// 解析Json数据
 func (rs *Rows) Unmarshal(av *fastjson.Value) {
+	// 递归解析多个数据点
 	rs.Rows, rs.tagsPool = unmarshalRows(rs.Rows[:0], av, rs.tagsPool[:0])
 }
 
@@ -55,14 +57,18 @@ func (r *Row) reset() {
 	r.Timestamp = 0
 }
 
+// 真正的数据解析逻辑
 func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
+	// 对象池中的数据，要进行清空
 	r.reset()
+	// 取出metricName
 	m := o.GetStringBytes("metric")
 	if len(m) == 0 {
 		return tagsPool, fmt.Errorf("missing `metric` in %s", o)
 	}
 	r.Metric = bytesutil.ToUnsafeString(m)
 
+	// 获取时间戳，int64类型的
 	rawTs := o.Get("timestamp")
 	if rawTs != nil {
 		ts, err := getFloat64(rawTs)
@@ -76,6 +82,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 		r.Timestamp = 0
 	}
 
+	// 获取数据值
 	rawV := o.Get("value")
 	if rawV == nil {
 		return tagsPool, fmt.Errorf("missing `value` in %s", o)
@@ -86,6 +93,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 	}
 	r.Value = v
 
+	// 获取Tag
 	vt := o.Get("tags")
 	if vt == nil {
 		// Allow empty tags.
@@ -96,6 +104,7 @@ func (r *Row) unmarshal(o *fastjson.Value, tagsPool []Tag) ([]Tag, error) {
 		return tagsPool, fmt.Errorf("invalid `tags` in %s: %s", o, err)
 	}
 
+	// Tag单独进行解析
 	tagsStart := len(tagsPool)
 	tagsPool, err = unmarshalTags(tagsPool, rawTags)
 	if err != nil {
@@ -123,10 +132,12 @@ func getFloat64(v *fastjson.Value) (float64, error) {
 }
 
 func unmarshalRows(dst []Row, av *fastjson.Value, tagsPool []Tag) ([]Row, []Tag) {
+	// 根据不同类型，走不同的方式进行数据的解析
 	switch av.Type() {
 	case fastjson.TypeObject:
 		return unmarshalRow(dst, av, tagsPool)
 	case fastjson.TypeArray:
+		// 遍历数组，进行数据解析
 		a, _ := av.Array()
 		for _, o := range a {
 			dst, tagsPool = unmarshalRow(dst, o, tagsPool)
@@ -139,12 +150,15 @@ func unmarshalRows(dst []Row, av *fastjson.Value, tagsPool []Tag) ([]Row, []Tag)
 	}
 }
 
+// 解析每个Item数据
 func unmarshalRow(dst []Row, o *fastjson.Value, tagsPool []Tag) ([]Row, []Tag) {
+	// 判断是否要扩容了，要扩容的话就扩容一个
 	if cap(dst) > len(dst) {
 		dst = dst[:len(dst)+1]
 	} else {
 		dst = append(dst, Row{})
 	}
+	// 取出一个空的
 	r := &dst[len(dst)-1]
 	var err error
 	tagsPool, err = r.unmarshal(o, tagsPool)
@@ -157,10 +171,11 @@ func unmarshalRow(dst []Row, o *fastjson.Value, tagsPool []Tag) ([]Row, []Tag) {
 }
 
 var invalidLines = metrics.NewCounter(`vm_rows_invalid_total{type="opentsdbhttp"}`)
-
+// 解析Tag
 func unmarshalTags(dst []Tag, o *fastjson.Object) ([]Tag, error) {
 	var err error
 	o.Visit(func(k []byte, v *fastjson.Value) {
+		// Tag只支持字符串类型
 		if v.Type() != fastjson.TypeString {
 			err = fmt.Errorf("tag value must be string; got %s; value=%s", v.Type(), v)
 			return
@@ -180,6 +195,7 @@ func unmarshalTags(dst []Tag, o *fastjson.Object) ([]Tag, error) {
 			dst = append(dst, Tag{})
 		}
 		tag := &dst[len(dst)-1]
+		// byte[]转字符串的高效写法
 		tag.Key = bytesutil.ToUnsafeString(k)
 		tag.Value = bytesutil.ToUnsafeString(vStr)
 	})

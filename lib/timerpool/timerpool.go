@@ -11,6 +11,7 @@ import (
 //
 // Return back the timer to the pool with Put.
 func Get(d time.Duration) *time.Timer {
+	// 优先从池里面取一个计时器，如果池子里面拿不到才会创建一个新的
 	if v := timerPool.Get(); v != nil {
 		t := v.(*time.Timer)
 		if t.Reset(d) {
@@ -25,6 +26,7 @@ func Get(d time.Duration) *time.Timer {
 //
 // t cannot be accessed after returning to the pool.
 func Put(t *time.Timer) {
+	// 只有Stop后的计时器才会放回到池里面去
 	if !t.Stop() {
 		// Drain t.C if it wasn't obtained by the caller yet.
 		select {

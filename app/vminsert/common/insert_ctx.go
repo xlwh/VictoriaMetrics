@@ -13,9 +13,13 @@ import (
 
 // InsertCtx contains common bits for data points insertion.
 type InsertCtx struct {
+	// Tag, key value都用的byte
+	//
 	Labels []prompb.Label
 
+	// MetricNameRaw、T、V
 	mrs            []storage.MetricRow
+	// metricName
 	metricNamesBuf []byte
 }
 
@@ -39,6 +43,7 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 	ctx.metricNamesBuf = ctx.metricNamesBuf[:0]
 }
 
+// 对MetricName进行编码
 func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompb.Label) []byte {
 	start := len(ctx.metricNamesBuf)
 	ctx.metricNamesBuf = append(ctx.metricNamesBuf, prefix...)
@@ -48,6 +53,7 @@ func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompb.Label)
 }
 
 // WriteDataPoint writes (timestamp, value) with the given prefix and labels into ctx buffer.
+// 写入数据点的处理
 func (ctx *InsertCtx) WriteDataPoint(prefix []byte, labels []prompb.Label, timestamp int64, value float64) {
 	metricNameRaw := ctx.marshalMetricNameRaw(prefix, labels)
 	ctx.addRow(metricNameRaw, timestamp, value)
@@ -103,6 +109,7 @@ func (ctx *InsertCtx) AddLabelBytes(name, value []byte) {
 // name and value must exist until ctx.Labels is used.
 func (ctx *InsertCtx) AddLabel(name, value string) {
 	labels := ctx.Labels
+	// 容量不够，尝试进行扩容
 	if cap(labels) > len(labels) {
 		labels = labels[:len(labels)+1]
 	} else {
@@ -112,6 +119,7 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 
 	// Do not copy name and value contents for performance reasons.
 	// This reduces GC overhead on the number of objects and allocations.
+	// 减少GC数据和对象分配开销
 	label.Name = bytesutil.ToUnsafeBytes(name)
 	label.Value = bytesutil.ToUnsafeBytes(value)
 
@@ -119,6 +127,7 @@ func (ctx *InsertCtx) AddLabel(name, value string) {
 }
 
 // FlushBufs flushes buffered rows to the underlying storage.
+// 数据刷入存储
 func (ctx *InsertCtx) FlushBufs() error {
 	if err := vmstorage.AddRows(ctx.mrs); err != nil {
 		return &httpserver.ErrorWithStatusCode{

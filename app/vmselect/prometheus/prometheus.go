@@ -676,6 +676,7 @@ func parsePositiveDuration(s string, step int64) (int64, error) {
 // QueryRangeHandler processes /api/v1/query_range request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
+// 处理查询请求
 func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	ct := currentTime()
 
@@ -683,6 +684,7 @@ func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
 	}
+	// 开始时间往前延伸默认的step
 	start, err := getTime(r, "start", ct-defaultStep)
 	if err != nil {
 		return err
@@ -695,6 +697,7 @@ func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
+	// 查询和计算
 	if err := queryRangeHandler(w, query, start, end, step, r, ct); err != nil {
 		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %s", query, start, end, step, err)
 	}
@@ -702,6 +705,7 @@ func QueryRangeHandler(startTime time.Time, w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
+// 真正的查询处理逻辑所在
 func queryRangeHandler(w http.ResponseWriter, query string, start, end, step int64, r *http.Request, ct int64) error {
 	deadline := getDeadlineForQuery(r)
 	mayCache := !getBool(r, "nocache")
@@ -714,9 +718,11 @@ func queryRangeHandler(w http.ResponseWriter, query string, start, end, step int
 	if len(query) > *maxQueryLen {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), *maxQueryLen)
 	}
+	// 这种情况是不是应该直接报错
 	if start > end {
 		end = start + defaultStep
 	}
+	// 进行限流:(end-start)/step + 1
 	if err := promql.ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
 		return err
 	}

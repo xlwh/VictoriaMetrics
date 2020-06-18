@@ -26,28 +26,20 @@ var (
 )
 
 func main() {
-	// 解析flag参数
 	envflag.Parse()
-	// 初始化构建信息，主要是从makeFile中接收程序的版本号，并注入
 	buildinfo.Init()
-	// 日志初始化
 	logger.Init()
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
-	startTime := time.Now() // 记录服务启动时间
+	startTime := time.Now()
 	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
-	// 存储服务初始化
 	vmstorage.Init()
-	// 查询服务初始化
 	vmselect.Init()
-	// 写入服务初始化
 	vminsert.Init()
-	// 启动数据上报服务
 	startSelfScraper()
 
 	// 启动HTTP server，并注册好处理器
 	// 这里用的是原生的HTTP 处理器
 	go httpserver.Serve(*httpListenAddr, requestHandler)
-	// 记录一下服务启动花了多长的时间
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	// 等待停止信号

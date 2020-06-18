@@ -8,15 +8,20 @@ import (
 func TestRowsUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
+		// 接收解析完成的数据
 		var rows Rows
+		// 获取和构造ffjson解析器
 		p := GetParser()
 		defer PutParser(p)
+
+		// 解析完，返回一个类似map的结构
 		v, err := p.Parse(s)
 		if err != nil {
 			// Expected JSON parser error
 			return
 		}
 		// Verify OpenTSDB body parsing error
+		// 解析Json
 		rows.Unmarshal(v)
 		if len(rows.Rows) != 0 {
 			t.Fatalf("unexpected number of rows parsed; got %d; want 0", len(rows.Rows))
@@ -84,12 +89,16 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		t.Helper()
 		var rows Rows
 
+		// 获取解析器
 		p := GetParser()
 		defer PutParser(p)
+
+		// 创建Ffjson解析器
 		v, err := p.Parse(s)
 		if err != nil {
 			t.Fatalf("cannot parse json %s: %s", s, err)
 		}
+		// 解析数据
 		rows.Unmarshal(v)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
