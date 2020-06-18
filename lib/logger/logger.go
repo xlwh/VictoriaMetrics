@@ -18,6 +18,7 @@ import (
 )
 
 var (
+	// 日志级别，日志格式，日志输出通过flag指定,flag用原生的flag
 	loggerLevel  = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, ERROR, FATAL, PANIC")
 	loggerFormat = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
 	loggerOutput = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")

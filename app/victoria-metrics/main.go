@@ -28,6 +28,7 @@ var (
 func main() {
 	envflag.Parse()
 	buildinfo.Init()
+	// 日志服务初始化
 	logger.Init()
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
