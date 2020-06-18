@@ -244,6 +244,8 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 	prometheus.WriteErrorResponse(w, statusCode, err)
 }
 
+// 针对每个接口，都进行流量和错误数的计数
+// 接口的错误数怎么计算，需要看一下
 var (
 	labelValuesRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/label/{}/values"}`)
 	labelValuesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/api/v1/label/{}/values"}`)
