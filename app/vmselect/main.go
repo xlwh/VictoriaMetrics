@@ -42,12 +42,17 @@ func getDefaultMaxConcurrentRequests() int {
 }
 
 // Init initializes vmselect
+// 初始化数据查询服务
 func Init() {
+	// 清理临时的数据目录
 	tmpDirPath := *vmstorage.DataPath + "/tmp"
 	fs.RemoveDirContents(tmpDirPath)
+	// netstorage,保存临时的搜索结果
 	netstorage.InitTmpBlocksDir(tmpDirPath)
+	// rollUp结果缓存
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
 
+	// 查询并发控制器
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
 }
 

@@ -21,11 +21,13 @@ var (
 	retentionPeriod = flag.Int("retentionPeriod", 1, "Retention period in months")
 	snapshotAuthKey = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
 
+	// 每个值要存储的数据精度
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
 	// DataPath is a path to storage data.
-	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data")
+	DataPath = flag.String("storageDataPath", "victoria-metrics-data", "Path to storage data") // 数据保存路径
 
+	// 数据merge的并发度控制
 	bigMergeConcurrency   = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
 	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
 )
@@ -40,22 +42,29 @@ func Init() {
 //
 // This allows multiple Init / Stop cycles.
 func InitWithoutMetrics() {
+	// 检查数据精度参数是否合法
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		logger.Fatalf("invalid `-precisionBits`: %s", err)
 	}
 
+	// 直接操作lib包中的全部变量来修改一些配置
+	// 这样的写法有点奇怪的
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 
 	logger.Infof("opening storage at %q with retention period %d months", *DataPath, *retentionPeriod)
+	// 可能是想要记录一下启动时间
 	startTime := time.Now()
 	WG = syncwg.WaitGroup{}
+
+	// 打开底层存储，传入数据过期时间和数据存储目录
 	strg, err := storage.OpenStorage(*DataPath, *retentionPeriod)
 	if err != nil {
 		logger.Fatalf("cannot open a storage at %s with retention period %d months: %s", *DataPath, *retentionPeriod, err)
 	}
 	Storage = strg
 
+	// 设置和更新一些监控指标
 	var m storage.Metrics
 	Storage.UpdateMetrics(&m)
 	tm := &m.TableMetrics
@@ -71,6 +80,7 @@ func InitWithoutMetrics() {
 //
 // Every storage call must be wrapped into WG.Add(1) ... WG.Done()
 // for proper graceful shutdown when Stop is called.
+// 存储是一个全局变量
 var Storage *storage.Storage
 
 // WG must be incremented before Storage call.
@@ -79,9 +89,11 @@ var Storage *storage.Storage
 var WG syncwg.WaitGroup
 
 // AddRows adds mrs to the storage.
-// 往存储里面写入数据
+// 往存储里面写入数据:metricName、timeStamp、value
 func AddRows(mrs []storage.MetricRow) error {
+	// 使用wg，主要是为了防止并发调用上有一些问题
 	WG.Add(1)
+	// 传入数据对象数组和数据精度
 	err := Storage.AddRows(mrs, uint8(*precisionBits))
 	WG.Done()
 	return err
@@ -133,7 +145,10 @@ func GetSeriesCount() (uint64, error) {
 func Stop() {
 	logger.Infof("gracefully closing the storage at %s", *DataPath)
 	startTime := time.Now()
+	// 阻塞住，不让数据写入,这种写法也是很神奇的一种代码写法呀
+	// 先阻塞住，不让数据写入
 	WG.WaitAndBlock()
+	// 然后安全关闭存储服务
 	Storage.MustClose()
 	logger.Infof("successfully closed the storage in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -223,7 +238,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
+// 注册一些监控指标
 func registerStorageMetrics() {
+	// 一些常量，记录一些监控指标的
 	mCache := &storage.Metrics{}
 	var mCacheLock sync.Mutex
 	var lastUpdateTime time.Time
@@ -249,6 +266,7 @@ func registerStorageMetrics() {
 		return &sm.IndexDBMetrics
 	}
 
+	// 磁盘剩余空间大小,注册一个回调函数，可以实时拿到磁盘空间
 	metrics.NewGauge(fmt.Sprintf(`vm_free_disk_space_bytes{path=%q}`, *DataPath), func() float64 {
 		return float64(fs.MustGetFreeSpace(*DataPath))
 	})
@@ -569,6 +587,7 @@ func registerStorageMetrics() {
 	})
 }
 
+// 报错信息
 func jsonResponseError(w http.ResponseWriter, err error) {
 	logger.Errorf("%s", err)
 	w.WriteHeader(http.StatusInternalServerError)

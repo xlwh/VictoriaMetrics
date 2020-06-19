@@ -33,9 +33,14 @@ func main() {
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
 	storage.SetMinScrapeIntervalForDeduplication(*minScrapeInterval)
+	// 初始化存储服务
 	vmstorage.Init()
+	// 初始化查询服务,初始化查询结果缓存
 	vmselect.Init()
+	// 数据写入服务初始化,这块主要是启动Http服务，并注册处理函数
 	vminsert.Init()
+
+	// 自己的服务指标上报
 	startSelfScraper()
 
 	// 启动HTTP server，并注册好处理器

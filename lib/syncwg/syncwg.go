@@ -39,6 +39,7 @@ func (wg *WaitGroup) Wait() {
 // when other goroutines calling Add must be stopped.
 //
 // wg cannot be used after this call.
+// 如何释放呢？？？
 func (wg *WaitGroup) WaitAndBlock() {
 	wg.mu.Lock()
 	wg.WaitGroup.Wait()

@@ -43,13 +43,18 @@ var (
 )
 
 // Init initializes vminsert.
+// 数据写入服务初始化
 func Init() {
+	// 设置每条线最多多少个Tag,默认是30个
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 
+	// 写入并发控制器
 	writeconcurrencylimiter.Init()
+	// 根据配置指定，分别启动
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, influx.InsertHandlerForReader)
 	}
+	// 还支持graphite的数据写入,还是比较不错的
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
 	}
@@ -59,6 +64,7 @@ func Init() {
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, opentsdbhttp.InsertHandler)
 	}
+	// 启动数据抓取服务
 	promscrape.Init(prompush.Push)
 }
 
