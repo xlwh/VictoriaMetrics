@@ -45,6 +45,7 @@ func main() {
 
 	// 启动HTTP server，并注册好处理器
 	// 这里用的是原生的HTTP 处理器
+	// 劣势就是整个服务启动了太多的server，每个服务有自己的端口，在我们配置域名接入的时候，我们需要分别为每个服务配置自己的端口
 	go httpserver.Serve(*httpListenAddr, requestHandler)
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -52,6 +53,7 @@ func main() {
 	sig := procutil.WaitForSigterm()
 	logger.Infof("received signal %s", sig)
 
+	// 收到停止信号以后，清理资源，释放空间
 	stopSelfScraper()
 
 	logger.Infof("gracefully shutting down webservice at %q", *httpListenAddr)
@@ -70,7 +72,7 @@ func main() {
 	logger.Infof("the VictoriaMetrics has been stopped in %.3f seconds", time.Since(startTime).Seconds())
 }
 
-// HTTP 请求处理器
+// HTTP 请求处理器注册
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	// 数据写入？
 	if vminsert.RequestHandler(w, r) {

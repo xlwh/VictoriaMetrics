@@ -35,13 +35,14 @@ type Storage struct {
 	tooSmallTimestampRows uint64
 	tooBigTimestampRows   uint64
 
+	// 读写并发度参数
 	addRowsConcurrencyLimitReached uint64
 	addRowsConcurrencyLimitTimeout uint64
 	addRowsConcurrencyDroppedRows  uint64
 
-	path            string
-	cachePath       string
-	retentionMonths int
+	path            string // 数据保存路径
+	cachePath       string // 缓存数据路径
+	retentionMonths int    // 数据过期时间
 
 	// lock file for exclusive access to the storage on the given path.
 	flockF *os.File
@@ -890,6 +891,8 @@ var (
 )
 
 // 写入数据到存储层
+// TSID->T,V     name->T,V
+// 为什么要传入两种数据进来呢，不直接传入tsid,name ->T,V就行呢
 func (s *Storage) add(rows []rawRow, mrs []MetricRow, precisionBits uint8) ([]rawRow, error) {
 	var is *indexSearch
 	var mn *MetricName
