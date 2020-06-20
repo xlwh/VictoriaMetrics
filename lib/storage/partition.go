@@ -265,6 +265,7 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 	if err := pt.tr.fromPartitionName(name); err != nil {
 		return nil, fmt.Errorf("cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
 	}
+	// 启动各种线程
 	pt.startMergeWorkers()
 	pt.startRawRowsFlusher()
 	pt.startInmemoryPartsFlusher()

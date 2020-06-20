@@ -14,25 +14,30 @@ import (
 )
 
 // table represents a single table with time series data.
+// 表示的是一个时序数据表
 type table struct {
-	path                string
+	path string // 数据路径
+
+	// 大小分区的路径
 	smallPartitionsPath string
 	bigPartitionsPath   string
 
 	getDeletedMetricIDs func() *uint64set.Set
 
+	// 可能是把数据放在多个分区吧
 	ptws     []*partitionWrapper
 	ptwsLock sync.Mutex
 
-	flockF *os.File
+	flockF *os.File // 文件句柄
 
 	stop chan struct{}
 
-	retentionMilliseconds int64
+	retentionMilliseconds int64 // 数据的过期时间
 	retentionWatcherWG    sync.WaitGroup
 }
 
 // partitionWrapper provides refcounting mechanism for the partition.
+// 为分区提供引用计数机制
 type partitionWrapper struct {
 	// Atomic counters must be at the top of struct for proper 8-byte alignment on 32-bit archs.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212
@@ -42,6 +47,7 @@ type partitionWrapper struct {
 	// The partition must be dropped if mustDrop > 0
 	mustDrop uint64
 
+	// 具体的数据分区
 	pt *partition
 }
 
@@ -81,19 +87,23 @@ func (ptw *partitionWrapper) scheduleToDrop() {
 //
 // Data older than the retentionMonths may be dropped at any time.
 func openTable(path string, retentionMonths int, getDeletedMetricIDs func() *uint64set.Set) (*table, error) {
+	// 清理一下文件夹
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
+	// 如果文件目录不存在，则新建一个文件目录
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create directory for table %q: %s", path, err)
 	}
 
 	// Protect from concurrent opens.
+	// 拿到文件的锁？？？？
 	flockF, err := fs.CreateFlockFile(path)
 	if err != nil {
 		return nil, err
 	}
 
+	// 为什么要区分small 和big
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := path + "/small"
 	if err := fs.MkdirAllIfNotExist(smallPartitionsPath); err != nil {
@@ -118,6 +128,7 @@ func openTable(path string, retentionMonths int, getDeletedMetricIDs func() *uin
 		return nil, fmt.Errorf("cannot open partitions in the table %q: %s", path, err)
 	}
 
+	// 创建table
 	tb := &table{
 		path:                path,
 		smallPartitionsPath: smallPartitionsPath,
@@ -134,8 +145,10 @@ func openTable(path string, retentionMonths int, getDeletedMetricIDs func() *uin
 	if retentionMonths <= 0 || retentionMonths > maxRetentionMonths {
 		retentionMonths = maxRetentionMonths
 	}
+	// 设置数据过期时间
 	tb.retentionMilliseconds = int64(retentionMonths) * 31 * 24 * 3600 * 1e3
 
+	// 启动数据过期的监视器
 	tb.startRetentionWatcher()
 	return tb, nil
 }
@@ -446,6 +459,8 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMet
 		return nil, err
 	}
 	var pts []*partition
+	// 根据目录下的文件名，创建对应的分片
+	// 可能是一个sstable对应着一个分区吧
 	for ptName := range ptNames {
 		smallPartsPath := smallPartitionsPath + "/" + ptName
 		bigPartsPath := bigPartitionsPath + "/" + ptName

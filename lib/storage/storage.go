@@ -45,13 +45,16 @@ type Storage struct {
 	retentionMonths int    // 数据过期时间
 
 	// lock file for exclusive access to the storage on the given path.
+	// 锁定文件，以独占的方式来使用给定路径上的文件
 	flockF *os.File
 
 	idbCurr atomic.Value
 
+	// 核心结构???
 	tb *table
 
 	// tsidCache is MetricName -> TSID cache.
+	// 通过这个tidCache，可以方便快速的找到这个TSID，降低计算的性能开销？？？
 	tsidCache *workingsetcache.Cache
 
 	// metricIDCache is MetricID -> TSID cache.
